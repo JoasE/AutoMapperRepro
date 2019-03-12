@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
 using AutoMapperRepro.Models;
@@ -36,7 +37,48 @@ namespace AutoMapperRepro
 
             context = new ReproContext();
 
-            var getUser = context.Users.ProjectTo<User.ViewDto>().FirstOrDefault(x => x.Id == user.Id);
+            // Copied from var expression declared below.
+            var manualQuery = context.Users.Select(dtoUser => new User.ViewDto
+            {
+                Id = dtoUser.Id,
+                Posts = dtoUser.Posts
+                    .Select(
+                        dtoPost => new Object_205617611___LastComment_Id_Text_UserId
+                        {
+                            __LastComment = dtoPost.Comments.LastOrDefault(),
+                            Id = dtoPost.Id,
+                            Text = dtoPost.Text,
+                            UserId = dtoPost.UserId
+                        })
+                    .Select(
+                        dtoLet => new Post.ViewDto
+                        {
+                            Id = dtoLet.Id,
+                            LastComment = (dtoLet.__LastComment == null)
+                                ? null
+                                : new Comment.ViewDto
+                                {
+                                    Id = dtoLet.__LastComment.Id,
+                                    PostId = dtoLet.__LastComment.PostId,
+                                    Text = dtoLet.__LastComment.Text
+                                },
+                            Text = dtoLet.Text,
+                            UserId = dtoLet.UserId
+                        })
+                    .ToList()
+            }).FirstOrDefault(x => x.Id == user.Id);
+
+            var projection = context.Users.ProjectTo<User.ViewDto>();
+            var expression = projection.Expression;
+            var getUser = projection.FirstOrDefault(x => x.Id == user.Id);
         }
+    }
+
+    public class Object_205617611___LastComment_Id_Text_UserId
+    {
+        public Comment __LastComment { get; set; }
+        public Guid Id { get; set; }
+        public Guid UserId { get; set; }
+        public string Text { get; set; }
     }
 }
